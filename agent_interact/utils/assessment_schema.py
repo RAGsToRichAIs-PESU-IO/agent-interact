@@ -1,7 +1,13 @@
 from fastapi import HTTPException
 import os
 import json
-from llama_index.core import SimpleDirectoryReader, VectorStoreIndex, StorageContext, load_index_from_storage, Settings
+from llama_index.core import (
+    SimpleDirectoryReader,
+    VectorStoreIndex,
+    StorageContext,
+    load_index_from_storage,
+    Settings,
+)
 from llama_index.core.tools import QueryEngineTool, ToolMetadata
 from llama_index.core.memory import ChatMemoryBuffer
 from llama_index.llms.groq import Groq
@@ -12,12 +18,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 Settings.llm = Groq(model="llama-3.1-70b-versatile", api_key=os.getenv("GROQ_API_KEY"))
-Settings.embed_model = JinaEmbedding(api_key=os.getenv("JINA_API_KEY"),
-            model="jina-embeddings-v2-base-en",
-        )
+Settings.embed_model = JinaEmbedding(
+    api_key=os.getenv("JINA_API_KEY"),
+    model="jina-embeddings-v2-base-en",
+)
 
 PDF_PATH = "data/course_data.pdf"
 INDEX_PATH = "saved_index"
+
 
 # Load or create index
 def load_or_create_index():
@@ -30,10 +38,11 @@ def load_or_create_index():
         index.storage_context.persist(persist_dir=INDEX_PATH)
     return index
 
+
 # Initialize Generator Agent
 def initialize_generator_agent(index):
     query_engine = index.as_query_engine(similarity_top_k=10)
-    
+
     tools = [
         QueryEngineTool(
             query_engine=query_engine,
@@ -45,7 +54,7 @@ def initialize_generator_agent(index):
     ]
 
     memory = ChatMemoryBuffer.from_defaults(token_limit=2048)
-    
+
     custom_prompt = """
         You are a question generator designed to create questions based on study materials. Your task is to generate {question_type} questions about {topic} from the given context. Always use the study_material_query tool to gather relevant information before generating questions.
 
@@ -86,6 +95,7 @@ def initialize_generator_agent(index):
     agent = ReActAgent.from_tools(tools, memory=memory, system_prompt=custom_prompt)
     return agent
 
+
 # Generate questions
 def generate_questions(agent, topic, question_type, num_questions):
     prompt = f"""Generate {num_questions} {question_type} questions about {topic}. 
@@ -94,16 +104,22 @@ def generate_questions(agent, topic, question_type, num_questions):
     Ensure that your response is a properly formatted JSON object. Double-check the JSON structure before submitting.
     """
     response = agent.chat(prompt)
-    
+
     try:
         questions_data = json.loads(response.response)
-        if not isinstance(questions_data, dict) or 'questions' not in questions_data:
+        if not isinstance(questions_data, dict) or "questions" not in questions_data:
             raise ValueError("Response is not in the expected format")
         return questions_data
     except json.JSONDecodeError:
-        raise HTTPException(status_code=500, detail="Failed to parse the generated questions. The output was not in valid JSON format.")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to parse the generated questions. The output was not in valid JSON format.",
+        )
     except ValueError as e:
-        raise HTTPException(status_code=500, detail=f"Error in question generation: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error in question generation: {str(e)}"
+        )
+
 
 # Evaluate user answer
 def evaluate_answer(question, user_answer, correct_answer):
@@ -121,13 +137,22 @@ Provide your evaluation as a valid JSON object with the following structure:
 Ensure that your response is always a valid JSON object before submitting.
 """
     response = Settings.llm.complete(prompt)
-    
+
     try:
         evaluation_data = json.loads(response.text)
-        if not isinstance(evaluation_data, dict) or 'grade' not in evaluation_data or 'feedback' not in evaluation_data:
+        if (
+            not isinstance(evaluation_data, dict)
+            or "grade" not in evaluation_data
+            or "feedback" not in evaluation_data
+        ):
             raise ValueError("Response is not in the expected format")
         return evaluation_data
     except json.JSONDecodeError:
-        raise HTTPException(status_code=500, detail="Failed to parse the evaluation. The output was not in valid JSON format.")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to parse the evaluation. The output was not in valid JSON format.",
+        )
     except ValueError as e:
-        raise HTTPException(status_code=500, detail=f"Error in answer evaluation: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error in answer evaluation: {str(e)}"
+        )
