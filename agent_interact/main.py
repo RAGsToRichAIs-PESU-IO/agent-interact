@@ -44,7 +44,6 @@ Query: {query_str}
 Answer: """
 custom_prompt = PromptTemplate(prompt)
 query_engine.update_prompts({"response_synthesizer:text_qa_template": custom_prompt})
-print(query_engine.get_prompts())
 
 
 # Pydantic models
@@ -128,4 +127,4 @@ async def root():
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=10000)
+    uvicorn.run(app, host="0.0.0.0")
