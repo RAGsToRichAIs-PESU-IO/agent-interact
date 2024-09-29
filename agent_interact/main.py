@@ -112,7 +112,7 @@ async def audio_query(audio: UploadFile = File(...)):
             temperature=0.0,
         )
         print(translation.text)
-        return AudioTranslation(translated=translation)
+        return AudioTranslation(translated=translation.text)
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error processing audio query: {str(e)}"
